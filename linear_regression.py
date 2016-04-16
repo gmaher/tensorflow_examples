@@ -20,7 +20,7 @@ b = tf.Variable(tf.zeros([1]))
 yhat = tf.matmul(X.T,W) + b
 
 #set up loss function to minimize
-loss = tf.reduce_mean(tf.square(Y-yhat)) + 0.45*b*b + 0.45*tf.reduce_mean(tf.square(W)) 
+loss = tf.reduce_mean(tf.square(Y-yhat)) + 0.45*b*b + 0.9*tf.reduce_mean(tf.square(W)) 
 optimizer = tf.train.GradientDescentOptimizer(0.05)
 train = optimizer.minimize(loss)
 
