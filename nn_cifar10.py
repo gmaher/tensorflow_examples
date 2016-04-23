@@ -49,12 +49,18 @@ conv1 = tf.nn.conv2d(x_batch, W1, [1,1,1,1], padding="SAME")
 conv1_bias = tf.nn.bias_add(conv1,b1, name='conv1bias')
 out1 = tf.nn.relu(conv1_bias, name='out1')
 
+#histogram summary to monitor outputs
+hist_out1 = tf.histogram_summary('out1_hist', out1)
+
 #Now need to reshape the output of the conv layer to be able
 #to feed it to a fully connected layer
 in2 = tf.reshape(out1, [Nbatch, -1])
 W2 = tf.Variable(tf.random_normal([Nfilters*Npix*Npix,Nlabels], stddev=std_init), name='W2')
 b2 = tf.Variable(tf.zeros([Nlabels]), name='b2')
 out2 = tf.matmul(in2,W2)+b2
+
+#histogram to monitor out2
+hist_out2 = tf.histogram_summary('out2_hist', out2)
 
 #Now set up the loss function and regularization terms
 #note that here we again use the y placeholder variable
@@ -64,19 +70,29 @@ reg_loss = tf.nn.l2_loss(W1) + tf.nn.l2_loss(b1) + tf.nn.l2_loss(W2) + tf.nn.l2_
 
 loss = class_loss + weight_decay*reg_loss
 
-#Finally set up a optimizer to minimize the loss function
+#Scalar summary to monitor loss
+loss_sum = tf.scalar_summary('loss_summary', loss)
+
+#running each summary individually is cumbersome, so we can
+#create a single op that will run all of them at once
+full_Summary = tf.merge_all_summaries()
+
+#Finally set up an optimizer to minimize the loss function
 opt = tf.train.MomentumOptimizer(lr, momentum, name='mom')
 train = opt.minimize(loss)
 
-#now run the graph
+#now create and initialize the graph
 init = tf.initialize_all_variables()
 sess = tf.Session()
 
 sess.run(init)
+
+#also create a write to write out the summary files
+train_write = tf.train.SummaryWriter('./summaries', sess.graph_def)
+
+#still need to get the cifar10 data to feed to the graph
 data = unpickle("./data/cifar10/cifar-10-batches-py/data_batch_1")
 N,W = data['data'].shape
-mu = np.mean(data['data'], axis=0)
-sig = np.std(data['data'], axis=0)
 
 imgdata = np.zeros((N, Npix, Npix, Nchannels))
 for i in range(0,3):
@@ -84,11 +100,15 @@ for i in range(0,3):
 	imgdata[:,:,:,i] = (imgdata[:,:,:,i]-125)/125
 
 
-
+#now we can start the training loop
 for step in xrange(1001):
 	
+	#this is where we get data batches and tell the graph
+	#to use the batches instead of the placeholder variables
 	tup = get_batch(imgdata, data['labels'], Nbatch)
 	sess.run(train, feed_dict={x_batch: tup[0], y_batch:tup[1]})
 	
 	if step % 20 == 0:
+		sumstr = sess.run(full_Summary,feed_dict={x_batch: tup[0], y_batch:tup[1]})
+		train_write.add_summary(sumstr,step)
 		print(sess.run(loss,feed_dict={x_batch: tup[0], y_batch:tup[1]}))
