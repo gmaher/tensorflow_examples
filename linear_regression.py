@@ -17,7 +17,7 @@ W = tf.Variable(tf.random_uniform([2,1],0,4.0))
 b = tf.Variable(tf.zeros([1]))
 
 
-yhat = tf.matmul(X.T,W) + b
+yhat = tf.matmul(tf.transpose(W),X) + b
 
 #set up loss function to minimize
 loss = tf.reduce_mean(tf.square(Y-yhat)) + 0.45*b*b + 0.9*tf.reduce_mean(tf.square(W)) 
@@ -37,6 +37,8 @@ for step in xrange(2001):
 		print(step, sess.run(W), sess.run(b), sess.run(loss))
 
 import matplotlib.pyplot as plt
-plt.plot(X[1,:], Y, 'ro')
-plt.plot(X[1,:], sess.run(yhat), 'gx')
+print Y.shape
+print X.shape
+plt.plot(X[1,:], Y.T, 'ro')
+plt.plot(X[1,:], sess.run(yhat).T, 'gx')
 plt.show()
