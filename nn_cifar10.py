@@ -77,6 +77,9 @@ loss_sum = tf.scalar_summary('loss_summary', loss)
 #create a single op that will run all of them at once
 full_Summary = tf.merge_all_summaries()
 
+#create another loss summary to calculate validation error
+val_loss_sum = tf.scalar_summary('val_summary', loss)
+
 #Finally set up an optimizer to minimize the loss function
 opt = tf.train.MomentumOptimizer(lr, momentum, name='mom')
 train = opt.minimize(loss)
@@ -99,6 +102,14 @@ for i in range(0,3):
 	imgdata[:,:,:,i] = np.reshape(data['data'][:,i*1024:(i+1)*1024], (N,32,32)).astype(np.float32)
 	imgdata[:,:,:,i] = (imgdata[:,:,:,i]-125)/125
 
+#get validation data too
+val_data = unpickle("./data/cifar10/cifar-10-batches-py/data_batch_2")
+N,W = val_data['data'].shape
+
+val_imgdata = np.zeros((N, Npix, Npix, Nchannels))
+for i in range(0,3):
+	val_imgdata[:,:,:,i] = np.reshape(val_data['data'][:,i*1024:(i+1)*1024], (N,32,32)).astype(np.float32)
+	val_imgdata[:,:,:,i] = (val_imgdata[:,:,:,i]-125)/125
 
 #now we can start the training loop
 for step in xrange(1001):
@@ -111,4 +122,10 @@ for step in xrange(1001):
 	if step % 20 == 0:
 		sumstr = sess.run(full_Summary,feed_dict={x_batch: tup[0], y_batch:tup[1]})
 		train_write.add_summary(sumstr,step)
-		print(sess.run(loss,feed_dict={x_batch: tup[0], y_batch:tup[1]}))
+		print('train: ', sess.run(loss,feed_dict={x_batch: tup[0], y_batch:tup[1]}))
+
+		#also print validation data
+		tup = get_batch(val_imgdata, val_data['labels'], Nbatch)
+		valstr = sess.run(val_loss_sum, feed_dict={x_batch: tup[0], y_batch:tup[1]})
+		train_write.add_summary(valstr,step)
+		print('val: ', sess.run(loss,feed_dict={x_batch: tup[0], y_batch:tup[1]}))
